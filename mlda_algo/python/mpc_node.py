@@ -208,10 +208,14 @@ class ROSNode:
         self.pub_vel.publish(vel)
 
     def run(self):
+        # try:
+        # Clear up to the closest point
         try:
-            # Start the reference trajectory at the closest point to the robot
             min_dist_idx = 0
             min_dist = 1
+            inner_dist = 0.0
+            outer_dist = 0.05
+            outer_dist_idx = 0
 
             dist = [1] * len(self.og_x_ref)
             for i in range(len(self.og_x_ref)):
@@ -222,7 +226,12 @@ class ROSNode:
                 if dist[i] <= min_dist:
                     min_dist_idx = i
                     min_dist = dist[i]
+                if min_dist_idx < i and dist[i] > outer_dist:
+                    outer_dist_idx = i
+                    break
 
+            # self.x_ref = [self.og_x_ref[min_dist_idx]] + self.og_x_ref[outer_dist_idx:]
+            # self.y_ref = [self.og_y_ref[min_dist_idx]] + self.og_y_ref[outer_dist_idx:]
             self.x_ref = self.og_x_ref[min_dist_idx:]
             self.y_ref = self.og_y_ref[min_dist_idx:]
 
@@ -232,12 +241,15 @@ class ROSNode:
 
                 # Setup the MPC
                 self.mpc.setup(self.rate)
+                # solve
+                # print("Before solve: ", len(self.x_ref))
                 if len(all_obs_x) == 0:
                     self.mode = "safe"
                     self.v_opt, self.w_opt, self.mode, self.display = self.mpc.solve(
                         self.x_ref, self.y_ref, self.theta_ref, self.X0
-                    )  
+                    )  # Return the optimization variables
                 else:
+
                     self.v_opt, self.w_opt, self.mode, self.display = (
                         self.mpc.solve_obs(
                             self.x_ref,
@@ -247,9 +259,11 @@ class ROSNode:
                             all_obs_y,
                             self.X0,
                         )
-                    ) 
+                    )  # Return the optimization variables
+
                 # Control and take only the first step
                 self.publish_velocity(self.v_opt, self.w_opt)
+
                 # Get from the MPC results
                 mpc_x_traj = self.mpc.previous_solution[0 :: self.mpc.n]
                 mpc_y_traj = self.mpc.previous_solution[1 :: self.mpc.n]

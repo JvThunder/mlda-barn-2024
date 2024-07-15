@@ -7,6 +7,7 @@ from nav_msgs.msg import Path, Odometry
 import numpy as np
 from tf.transformations import euler_from_quaternion
 from tf_conversions import Quaternion
+import csv
 
 class Inspection():
     def __init__(self):
@@ -34,28 +35,35 @@ class Inspection():
         self.sub_local_plan = rospy.Subscriber(self.TOPIC_MPC, Path, self.callback_local_plan)
         self.sub_footprint = rospy.Subscriber(self.TOPIC_LOCAL_FOOTPRINT, PolygonStamped, self.callback_footprint)
         self.sub_cmd_vel = rospy.Subscriber(self.TOPIC_CMD_VEL, Twist, self.callback_cmd_vel)
-        self.publish_cmd_vel = rospy.Publisher(self.TOPIC_CMD_VEL, Twist, queue_size= 10)
+        self.publish_cmd_vel = rospy.Publisher(self.TOPIC_CMD_VEL, Twist, queue_size=10)
         
-        
+        print("Write to CSV file: data.csv")
+        self.data_list = []
+        self.csv_file = open('/jackal_ws/src/mlda-barn-2024/data.csv', 'w')
+        self.writer = csv.writer(self.csv_file)
+        self.writer.writerow(['front_scan', 'cmd_vel_linear_x', 'cmd_vel_angular_z'])
+        self.csv_file.flush()
+        print("Data Collection Started")
         pass
     
-    def callback_front_scan(self,data):
+    def callback_front_scan(self, data):
         self.scan = data
-        if 0:
+        if 1:
             print("Scan points: ", len(data.ranges), "From Max: ", data.range_max, "| Min: ", round(data.range_min,2))
             print("Angle from: ", np.degrees(data.angle_min).round(2), " to: ", np.degrees(data.angle_max).round(2), " increment: ", np.degrees(data.angle_increment).round(3))
-
+            self.data_list.append(data.ranges[::60])
         pass
-    def callback_global_plan(self,data):
+    def callback_global_plan(self, data):
         self.global_plan = data
-        if 1: 
+        if 0: 
             print("Global Path points ", len(data.poses))
             print(data.poses[3])
             print("Local Path points ", len(self.local_plan.poses))
-    def callback_local_plan(self,data):
+    
+    def callback_local_plan(self, data):
         self.local_plan = data
     
-    def callback_odometry(self,data):
+    def callback_odometry(self, data):
         if 0:
             self.odometry = data
             print("==========================")
@@ -80,8 +88,7 @@ class Inspection():
             print(data.twist.twist.angular)
         pass
     
-    
-    def callback_footprint(self,data):
+    def callback_footprint(self, data):
         self.footprint = data
         if 0: 
             points_array = []
@@ -91,9 +98,13 @@ class Inspection():
             print("Number of points on the Polygon: ", len(data.polygon.points))
             print("Points: ", np.round(np_array,3))
         pass
-    def callback_cmd_vel(self,data):
-        if 0:
-            print("Linear: ", data.linear, "; Angular: ", data.angular)
+
+    def callback_cmd_vel(self, data):
+        if 1:
+            print("Linear: ", round(data.linear.x,3), "; Angular: ", round(data.angular.z,3))
+            self.data_list.extend([data.linear.x, data.angular.z])
+            self.writer.writerow(self.data_list)
+            self.data_list = []  # reset the list for the next set of data
         pass
 
 
