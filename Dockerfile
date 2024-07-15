@@ -9,7 +9,7 @@ RUN apt install git
 RUN git clone https://github.com/jackal/jackal.git --branch melodic-devel
 RUN git clone https://github.com/jackal/jackal_simulator.git --branch melodic-devel
 RUN git clone https://github.com/jackal/jackal_desktop.git --branch melodic-devel
-RUN git clone https://github.com/MLDA-NTU/mlda-barn-2024.git --branch Hard-Deadline-dev
+RUN git clone https://github.com/JvThunder/mlda-barn-2024.git
 # RUN git clone https://gitlab.kuleuven.be/u0144428/free_space_motion_tube.git --branch barn2023
 
 WORKDIR /jackal_ws/src/mlda-barn-2024/free_space_motion_tube
