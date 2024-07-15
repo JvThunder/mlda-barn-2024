@@ -66,4 +66,4 @@ rosservice call /move_base/clear_costmaps "{}"
 
 cd mlda-barn-2024/ && python run_rviz_kul.py
 
-cd mlda-barn-2024/ && python get_kul_data.py
+cd mlda-barn-2024/ && python ./get_kul_data.bash
