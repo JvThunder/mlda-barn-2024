@@ -41,7 +41,9 @@ class Inspection():
         self.data_list = []
         self.csv_file = open('/jackal_ws/src/mlda-barn-2024/data.csv', 'w')
         self.writer = csv.writer(self.csv_file)
-        self.writer.writerow(['front_scan', 'cmd_vel_linear_x', 'cmd_vel_angular_z'])
+        self.lidar_rows = ["lidar_" + str(i) for i in range(720)]
+        self.action_rows = ['cmd_vel_linear_x', 'cmd_vel_angular_z']
+        self.writer.writerow(self.lidar_rows + self.action_rows)
         self.csv_file.flush()
         print("Data Collection Started")
         pass
@@ -51,7 +53,7 @@ class Inspection():
         if 1:
             print("Scan points: ", len(data.ranges), "From Max: ", data.range_max, "| Min: ", round(data.range_min,2))
             print("Angle from: ", np.degrees(data.angle_min).round(2), " to: ", np.degrees(data.angle_max).round(2), " increment: ", np.degrees(data.angle_increment).round(3))
-            self.data_list.append(data.ranges[::60])
+            self.data_list += list(data.ranges)
         pass
     def callback_global_plan(self, data):
         self.global_plan = data
@@ -102,9 +104,10 @@ class Inspection():
     def callback_cmd_vel(self, data):
         if 1:
             print("Linear: ", round(data.linear.x,3), "; Angular: ", round(data.angular.z,3))
-            self.data_list.extend([data.linear.x, data.angular.z])
-            self.writer.writerow(self.data_list)
-            self.data_list = []  # reset the list for the next set of data
+            if self.data_list != []:
+                self.data_list.extend([data.linear.x, data.angular.z])
+                self.writer.writerow(self.data_list)
+                self.data_list = []  # reset the list for the next set of data
         pass
 
 
