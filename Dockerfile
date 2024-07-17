@@ -42,4 +42,4 @@ RUN echo "fi" >> ~/.bashrc
 RUN echo "alias python=python3" >> ~/.bashrc
 RUN echo "cd /jackal_ws/src/" >> ~/.bashrc
 
-
+WORKDIR /jackal_ws/src/mlda-barn-2024
