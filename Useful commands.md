@@ -11,7 +11,10 @@ docker run --rm -dt --name barn \
 	-e LIBGL_ALWAYS_SOFTWARE=1 \
 	-v /tmp/.X11-unix:/tmp/.X11-unix \
 	-v $(pwd):/jackal_ws/src/mlda-barn-2024 \
-	barn:april1
+	barn:april1 \
+	bash -c "cd /jackal_ws/src/mlda-barn-2024 && exec bash"
+
+docker stop <id>
 ```
 
 ## Tag and push to DockerHub
@@ -30,7 +33,7 @@ rosservice call /move_base/clear_costmaps "{}"
 ```
 
 cd mlda-barn-2024/
-python run_rviz_kul.py
+python run_rviz_kul.py --world_idx 0
 
 cd mlda-barn-2024/
 python ./get_kul_data.bash

@@ -8,6 +8,7 @@ import numpy as np
 from tf.transformations import euler_from_quaternion
 from tf_conversions import Quaternion
 import csv
+import os
 
 class Inspection():
     def __init__(self):
@@ -37,23 +38,37 @@ class Inspection():
         self.sub_cmd_vel = rospy.Subscriber(self.TOPIC_CMD_VEL, Twist, self.callback_cmd_vel)
         self.publish_cmd_vel = rospy.Publisher(self.TOPIC_CMD_VEL, Twist, queue_size=10)
         
+        self.world_idx = rospy.get_param('~world_idx')
+        self.init_writer()
+        pass
+
+    def init_writer(self):
         print("Write to CSV file: data.csv")
-        self.data_list = []
-        self.csv_file = open('/jackal_ws/src/mlda-barn-2024/data.csv', 'w')
+        file_path = '/jackal_ws/src/mlda-barn-2024/data.csv'
+        if not os.path.exists(file_path):
+            new_file = True
+        else:
+            new_file = False
+        self.csv_file = open(file_path, 'a')
         self.writer = csv.writer(self.csv_file)
+        self.idx_row = ["world_idx"]
         self.lidar_rows = ["lidar_" + str(i) for i in range(720)]
         self.action_rows = ['cmd_vel_linear_x', 'cmd_vel_angular_z']
-        self.writer.writerow(self.lidar_rows + self.action_rows)
-        self.csv_file.flush()
-        print("Data Collection Started")
-        pass
+        if new_file:
+            self.writer.writerow(self.idx_row + self.lidar_rows + self.action_rows)
+            self.csv_file.flush()
+        
+        self.data_list = [self.world_idx]
+        self.data_counter = 0
     
     def callback_front_scan(self, data):
         self.scan = data
         if 1:
             print("Scan points: ", len(data.ranges), "From Max: ", data.range_max, "| Min: ", round(data.range_min,2))
             print("Angle from: ", np.degrees(data.angle_min).round(2), " to: ", np.degrees(data.angle_max).round(2), " increment: ", np.degrees(data.angle_increment).round(3))
-            self.data_list = list(data.ranges)
+            if self.data_counter == 0:
+                self.data_list += list(data.ranges)
+                self.data_counter += 1
         pass
     def callback_global_plan(self, data):
         self.global_plan = data
@@ -104,10 +119,11 @@ class Inspection():
     def callback_cmd_vel(self, data):
         if 1:
             print("Linear: ", round(data.linear.x,3), "; Angular: ", round(data.angular.z,3))
-            if self.data_list != []:
+            if self.data_counter == 1:
                 self.data_list.extend([data.linear.x, data.angular.z])
                 self.writer.writerow(self.data_list)
-                self.data_list = []  # reset the list for the next set of data
+                self.data_list = [self.world_idx]
+                self.data_counter = 0
         pass
 
 

@@ -101,6 +101,7 @@ if __name__ == "__main__":
     nav_stack_process = subprocess.Popen([
         'roslaunch',
         launch_file,
+        'world_idx:=' + str(args.world_idx)
     ])
     
     # Make sure your navigation stack recives the correct goal position defined in GOAL_POSITION
