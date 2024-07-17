@@ -53,7 +53,7 @@ class Inspection():
         if 1:
             print("Scan points: ", len(data.ranges), "From Max: ", data.range_max, "| Min: ", round(data.range_min,2))
             print("Angle from: ", np.degrees(data.angle_min).round(2), " to: ", np.degrees(data.angle_max).round(2), " increment: ", np.degrees(data.angle_increment).round(3))
-            self.data_list += list(data.ranges)
+            self.data_list = list(data.ranges)
         pass
     def callback_global_plan(self, data):
         self.global_plan = data
