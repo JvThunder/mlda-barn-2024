@@ -40,7 +40,5 @@ RUN echo "else" >> ~/.bashrc
 RUN echo "  source /jackal_ws/devel/setup.bash;" >> ~/.bashrc
 RUN echo "fi" >> ~/.bashrc
 RUN echo "alias python=python3" >> ~/.bashrc
-RUN echo "cd /jackal_ws/src/" >> ~/.bashrc
-
 RUN echo 'cd /jackal_ws/src/mlda-barn-2024' >> ~/.bashrc
 WORKDIR /jackal_ws/src/mlda-barn-2024
