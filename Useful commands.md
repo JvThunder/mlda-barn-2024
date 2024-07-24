@@ -32,4 +32,4 @@ rosservice call /move_base/clear_costmaps "{}"
 ```
 
 python run_rviz_kul.py --world_idx 0
-./get_kul_data.bash
+./get_kul_data.sh
