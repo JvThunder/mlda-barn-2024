@@ -13,13 +13,14 @@ import os
 class Inspection():
     def __init__(self):
         # Topic Defintions
-        self.TOPIC_CMD_VEL = "/cmd_vel"
-        self.TOPIC_FRONT_SCAN = "/front/scan"
-        self.TOPIC_LOCAL_FOOTPRINT = "/move_base/local_costmap/footprint"
-        self.TOPIC_GLOBAL_PLAN = "/move_base/TrajectoryPlannerROS/global_plan"
-        self.TOPIC_LOCAL_PLAN = "/move_base/TrajectoryPlannerROS/local_plan"
-        self.TOPIC_ODOM = "/odometry/filtered"
-        self.TOPIC_MPC = "/mpc_plan"
+        self.TOPIC_FRONT_SCAN = "/front/scan" # Front Laser Scan (LIDAR)
+        self.TOPIC_ODOM = "/odometry/filtered" # Odometry (pose and twist)
+        self.TOPIC_CMD_VEL = "/cmd_vel" # Command Velocity (action)
+
+        self.TOPIC_LOCAL_PLAN = "/move_base/TrajectoryPlannerROS/local_plan" # Local plan
+        self.TOPIC_LOCAL_FOOTPRINT = "/move_base/local_costmap/footprint" # the bounding box of the robot
+        self.TOPIC_GLOBAL_PLAN = "/move_base/TrajectoryPlannerROS/global_plan" # Global plan
+        self.TOPIC_MPC = "/mpc_plan" # MPC plan
         
         # Object to store
         self.scan = LaserScan()
@@ -27,7 +28,7 @@ class Inspection():
         self.global_plan = Path()
         self.local_plan = Path()
         self.odometry = Odometry()
-        self.footprint = PolygonStamped()
+        self.footprint = PolygonStamped() 
 
         # Subscribe        
         self.sub_front_scan = rospy.Subscriber(self.TOPIC_FRONT_SCAN, LaserScan, self.callback_front_scan)
@@ -40,7 +41,6 @@ class Inspection():
         
         self.world_idx = rospy.get_param('~world_idx')
         self.init_writer()
-        pass
 
     def init_writer(self):
         print("Write to CSV file: data.csv")
@@ -53,23 +53,36 @@ class Inspection():
         self.writer = csv.writer(self.csv_file)
         self.idx_row = ["world_idx"]
         self.lidar_rows = ["lidar_" + str(i) for i in range(720)]
-        self.action_rows = ['cmd_vel_linear_x', 'cmd_vel_angular_z']
+        self.odometry_rows = ['pos_x', 'pos_y', 'pose_heading', 'twist_linear', 'twist_angular']
+        self.action_rows = ['cmd_vel_linear', 'cmd_vel_angular']
+        self.all_rows = self.idx_row + self.lidar_rows + self.odometry_rows + self.action_rows
         if new_file:
-            self.writer.writerow(self.idx_row + self.lidar_rows + self.action_rows)
+            self.writer.writerow(self.all_rows)
             self.csv_file.flush()
         
-        self.data_list = [self.world_idx]
-        self.data_counter = 0
-    
+        self.data_dict = {}
+        self.data_dict["world_idx"] = self.world_idx
+
+    def update_csv(self):
+        if len(self.data_dict) == len(self.all_rows):
+            self.data_list = [self.data_dict[row] for row in self.all_rows]
+            self.writer.writerow(self.data_list)
+            self.csv_file.flush()
+            self.data_dict = {}
+            self.data_dict["world_idx"] = self.world_idx
+
     def callback_front_scan(self, data):
         self.scan = data
         if 1:
             print("Scan points: ", len(data.ranges), "From Max: ", data.range_max, "| Min: ", round(data.range_min,2))
             print("Angle from: ", np.degrees(data.angle_min).round(2), " to: ", np.degrees(data.angle_max).round(2), " increment: ", np.degrees(data.angle_increment).round(3))
-            if self.data_counter == 0:
-                self.data_list += list(data.ranges)
-                self.data_counter += 1
-        pass
+           
+            # update the data_dict
+            assert(len(data.ranges) == 720)
+            for i in range(720):
+                self.data_dict["lidar_" + str(i)] = data.ranges[i]
+            self.update_csv()
+
     def callback_global_plan(self, data):
         self.global_plan = data
         if 0: 
@@ -81,7 +94,7 @@ class Inspection():
         self.local_plan = data
     
     def callback_odometry(self, data):
-        if 0:
+        if 1:
             self.odometry = data
             print("==========================")
             print("----------------------- pose.position")
@@ -103,7 +116,14 @@ class Inspection():
             print(data.twist.twist.linear)
             print("----------------------- twist.angular")
             print(data.twist.twist.angular)
-        pass
+
+            # update the data_dict
+            self.data_dict["pos_x"] = data.pose.pose.position.x
+            self.data_dict["pos_y"] = data.pose.pose.position.y
+            self.data_dict["pose_heading"] = heading_rad
+            self.data_dict["twist_linear"] = data.twist.twist.linear.x
+            self.data_dict["twist_angular"] = data.twist.twist.angular.z
+            self.update_csv()
     
     def callback_footprint(self, data):
         self.footprint = data
@@ -114,17 +134,16 @@ class Inspection():
             np_array = np.array(points_array)
             print("Number of points on the Polygon: ", len(data.polygon.points))
             print("Points: ", np.round(np_array,3))
-        pass
 
     def callback_cmd_vel(self, data):
         if 1:
             print("Linear: ", round(data.linear.x,3), "; Angular: ", round(data.angular.z,3))
-            if self.data_counter == 1:
-                self.data_list.extend([data.linear.x, data.angular.z])
-                self.writer.writerow(self.data_list)
-                self.data_list = [self.world_idx]
-                self.data_counter = 0
-        pass
+            # linear.y and angular.x are always 0
+            
+            # update the data_dict
+            self.data_dict["cmd_vel_linear"] = data.linear.x
+            self.data_dict["cmd_vel_angular"] = data.angular.z
+            self.update_csv()
 
 
 
