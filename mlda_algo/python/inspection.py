@@ -10,6 +10,7 @@ from tf_conversions import Quaternion
 import csv
 import os
 
+INF_CAP = 10000
 class Inspection():
     def __init__(self):
         # Topic Defintions
@@ -65,7 +66,8 @@ class Inspection():
 
     def update_csv(self):
         if len(self.data_dict) == len(self.all_rows):
-            self.data_list = [self.data_dict[row] for row in self.all_rows]
+            self.data_list = [self.data_dict[key] for key in self.all_rows]
+
             self.writer.writerow(self.data_list)
             self.csv_file.flush()
             self.data_dict = {}
@@ -80,7 +82,10 @@ class Inspection():
             # update the data_dict
             assert(len(data.ranges) == 720)
             for i in range(720):
-                self.data_dict["lidar_" + str(i)] = data.ranges[i]
+                if data.ranges[i] > data.range_max:
+                    self.data_dict["lidar_" + str(i)] = data.range_max
+                else:
+                    self.data_dict["lidar_" + str(i)] = data.ranges[i]
             self.update_csv()
 
     def callback_global_plan(self, data):

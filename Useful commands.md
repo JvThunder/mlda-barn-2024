@@ -26,10 +26,16 @@ docker push mldarobotics/barn2024:april1
 ## ROS
 
 - Clear map
-
 ```shell
 rosservice call /move_base/clear_costmaps "{}"
 ```
 
+- Run one environment
+```shell
 python run_rviz_kul.py --world_idx 0
+```
+
+- Collect data from multiple environments
+```shell
 ./get_kul_data.sh
+```
