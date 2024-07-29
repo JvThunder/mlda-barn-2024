@@ -32,11 +32,6 @@ catkin_make
 source devel/setup.bash
 ```
 
-- Clear map
-```shell
-rosservice call /move_base/clear_costmaps "{}"
-```
-
 - Run one environment
 ```shell
 python run_rviz_kul.py --world_idx 0
