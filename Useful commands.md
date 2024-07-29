@@ -25,6 +25,13 @@ docker push mldarobotics/barn2024:april1
 
 ## ROS
 
+- Compile ROS Setup
+```shell
+cd /jackal_ws
+catkin_make
+source devel/setup.bash
+```
+
 - Clear map
 ```shell
 rosservice call /move_base/clear_costmaps "{}"

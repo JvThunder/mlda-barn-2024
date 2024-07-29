@@ -3,11 +3,11 @@ import argparse
 import subprocess
 import os
 from os.path import join
-
+import sys
 import numpy as np
 import rospy
 import rospkg
-
+from jackal_helper.msg import ResultData
 from gazebo_simulation import GazeboSimulation
 
 INIT_POSITION = [-2, 3, 1.57]  # in world frame
@@ -100,8 +100,7 @@ if __name__ == "__main__":
     launch_file = join(base_path, '..', 'jackal_helper/launch/move_base_motion_tube.launch')
     nav_stack_process = subprocess.Popen([
         'roslaunch',
-        launch_file,
-        'world_idx:=' + str(args.world_idx)
+        launch_file
     ])
     
     # Make sure your navigation stack recives the correct goal position defined in GOAL_POSITION
@@ -191,7 +190,22 @@ if __name__ == "__main__":
     with open(args.out, "a") as f:
         f.write("%d %d %d %d %.4f %.4f\n" %(args.world_idx, success, collided, (curr_time - start_time)>=100, curr_time - start_time, nav_metric))
     
+    # Initialize the node
+    pub = rospy.Publisher('result_data', ResultData, queue_size=10)
+    rospy.init_node('data_publisher', anonymous=True)
+    msg = ResultData()
+    msg.world_idx = args.world_idx
+    msg.actual_time = actual_time
+    msg.optimal_time = optimal_time
+    msg.success = success
+    pub.publish(msg)
+
     gazebo_process.terminate()
     gazebo_process.wait()
     nav_stack_process.terminate()
     nav_stack_process.wait()
+
+    if success:
+        sys.exit(200)
+    else:
+        sys.exit(400)

@@ -2,7 +2,7 @@
 
 # Default values
 start=0
-end=49
+end=299
 epochs=1
 
 # Parse command-line arguments
