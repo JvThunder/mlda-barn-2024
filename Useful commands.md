@@ -40,4 +40,5 @@ python run_rviz_kul.py --world_idx 0
 - Collect data from multiple environments
 ```shell
 ./get_kul_data.sh
+python get_kul_data.py
 ```

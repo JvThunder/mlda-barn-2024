@@ -41,29 +41,21 @@ class Inspection():
         self.sub_footprint = rospy.Subscriber(self.TOPIC_LOCAL_FOOTPRINT, PolygonStamped, self.callback_footprint)
         self.sub_cmd_vel = rospy.Subscriber(self.TOPIC_CMD_VEL, Twist, self.callback_cmd_vel)
         self.publish_cmd_vel = rospy.Publisher(self.TOPIC_CMD_VEL, Twist, queue_size=10)
-        self.result_pub = rospy.Subscriber(self.RESULT_DATA, ResultData, self.callback_result_data)
+        self.sub_result = rospy.Subscriber(self.RESULT_DATA, ResultData, self.callback_result_data)
         
         # init CSV File
         print("Write to CSV file: data.csv")
         file_path = '/jackal_ws/src/mlda-barn-2024/data.csv'
-        if not os.path.exists(file_path):
-            new_file = True
-        else:
-            new_file = False
-        self.csv_file = open(file_path, 'a')
-        self.writer = csv.writer(self.csv_file)
-
-        self.metadata_rows = ["success", "actual_time", "optimal_time"]
+        self.metadata_rows = ["success", "actual_time", "optimal_time", "goal_x", "goal_y", "world_idx"]
         self.lidar_rows = ["lidar_" + str(i) for i in range(720)]
         self.odometry_rows = ['pos_x', 'pos_y', 'pose_heading', 'twist_linear', 'twist_angular']
         self.action_rows = ['cmd_vel_linear', 'cmd_vel_angular']
         self.data_rows = self.lidar_rows + self.odometry_rows + self.action_rows
-        self.all_rows = self.metadata_rows + self.data_rows
-
-        if new_file:
-            self.writer.writerow(self.all_rows)
-            self.csv_file.flush()
+        self.fieldnames = self.metadata_rows + self.data_rows
         
+        self.csv_file = open(file_path, 'a')
+        self.writer = csv.DictWriter(self.csv_file, fieldnames=self.fieldnames)
+        self.writer.writeheader()
         self.data = []
         self.data_dict = {}
 
@@ -72,14 +64,18 @@ class Inspection():
             self.data.append(self.data_dict)
             self.data_dict = {}
 
-    def callback_result_data(self, data):
-        for row in self.data:
-            row["world_idx"] = data.world_idx
-            row["success"] = data.success
-            row["actual_time"] = data.actual_time
-            row["optimal_time"] = data.optimal_time
+    def callback_result_data(self, metadata):
+        print("---- Processing Result Data ----")
+        print("Length of data: ", len(self.data))
+        for i in range(len(self.data)):
+            self.data[i]["world_idx"] = metadata.world_idx
+            self.data[i]["success"] = metadata.success
+            self.data[i]["actual_time"] = metadata.actual_time
+            self.data[i]["optimal_time"] = metadata.optimal_time
+            self.data[i]["goal_x"] = metadata.goal_x
+            self.data[i]["goal_y"] = metadata.goal_y
 
-        if data.success:
+        if metadata.success:
             self.writer.writerows(self.data)
             self.csv_file.flush()
             self.data = []
@@ -104,7 +100,7 @@ class Inspection():
             self.odometry = data
             # print("==========================")
             # print("----------------------- pose.position")
-            # print(data.pose.pose.position)
+            print(data.pose.pose.position)
             # print("----------------------- pose.orientation")
             # print(data.pose.pose.orientation)
             q = Quaternion()

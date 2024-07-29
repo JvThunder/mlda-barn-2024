@@ -7,8 +7,8 @@ import sys
 import numpy as np
 import rospy
 import rospkg
-from jackal_helper.msg import ResultData
 from gazebo_simulation import GazeboSimulation
+from jackal_helper.msg import ResultData
 
 INIT_POSITION = [-2, 3, 1.57]  # in world frame
 GOAL_POSITION = [0, 10]  # relative to the initial position
@@ -70,6 +70,13 @@ if __name__ == "__main__":
     
     rospy.init_node('gym', anonymous=True) #, log_level=rospy.FATAL)
     rospy.set_param('/use_sim_time', True)
+
+    # Initialize the node
+    pub = rospy.Publisher('/result_data', ResultData, queue_size=10)
+    msg = ResultData()
+    msg.world_idx = args.world_idx
+    msg.goal_x = GOAL_POSITION[0]
+    msg.goal_y = GOAL_POSITION[1] 
     
     # GazeboSimulation provides useful interface to communicate with gazebo  
     gazebo_sim = GazeboSimulation(init_position=INIT_POSITION)
@@ -187,18 +194,14 @@ if __name__ == "__main__":
     nav_metric = int(success) * optimal_time / np.clip(actual_time, 2 * optimal_time, 8 * optimal_time)
     print("Navigation metric: %.4f" %(nav_metric))
     
-    with open(args.out, "a") as f:
-        f.write("%d %d %d %d %.4f %.4f\n" %(args.world_idx, success, collided, (curr_time - start_time)>=100, curr_time - start_time, nav_metric))
-    
-    # Initialize the node
-    pub = rospy.Publisher('result_data', ResultData, queue_size=10)
-    rospy.init_node('data_publisher', anonymous=True)
-    msg = ResultData()
-    msg.world_idx = args.world_idx
     msg.actual_time = actual_time
     msg.optimal_time = optimal_time
     msg.success = success
     pub.publish(msg)
+
+
+    with open(args.out, "a") as f:
+        f.write("%d %d %d %d %.4f %.4f\n" %(args.world_idx, success, collided, (curr_time - start_time)>=100, curr_time - start_time, nav_metric))
 
     gazebo_process.terminate()
     gazebo_process.wait()
