@@ -10,6 +10,7 @@ from tf.transformations import euler_from_quaternion
 from tf_conversions import Quaternion
 import csv
 import os
+import copy
 
 INF_CAP = 10000
 class Inspection():
@@ -53,9 +54,15 @@ class Inspection():
         self.data_rows = self.lidar_rows + self.odometry_rows + self.action_rows
         self.fieldnames = self.metadata_rows + self.data_rows
         
+        file_exist = False
+        if os.path.exists(file_path):
+            file_exist = True
+        
         self.csv_file = open(file_path, 'a')
         self.writer = csv.DictWriter(self.csv_file, fieldnames=self.fieldnames)
-        self.writer.writeheader()
+        if not file_exist:
+            self.writer.writeheader()
+
         self.data = []
         self.data_dict = {}
 
@@ -67,18 +74,20 @@ class Inspection():
     def callback_result_data(self, metadata):
         print("---- Processing Result Data ----")
         print("Length of data: ", len(self.data))
-        for i in range(len(self.data)):
-            self.data[i]["world_idx"] = metadata.world_idx
-            self.data[i]["success"] = metadata.success
-            self.data[i]["actual_time"] = metadata.actual_time
-            self.data[i]["optimal_time"] = metadata.optimal_time
-            self.data[i]["goal_x"] = metadata.goal_x
-            self.data[i]["goal_y"] = metadata.goal_y
+        print("Metadata: ", metadata)
+
+        data = copy.deepcopy(self.data)
+        self.data = []
+        for i in range(len(data)):
+            data[i]["world_idx"] = metadata.world_idx
+            data[i]["success"] = metadata.success
+            data[i]["actual_time"] = metadata.actual_time
+            data[i]["optimal_time"] = metadata.optimal_time
+            data[i]["goal_x"] = metadata.goal_x
+            data[i]["goal_y"] = metadata.goal_y
 
         if metadata.success:
-            self.writer.writerows(self.data)
-            self.csv_file.flush()
-            self.data = []
+            self.writer.writerows(data)
 
     def callback_front_scan(self, data):
         self.scan = data

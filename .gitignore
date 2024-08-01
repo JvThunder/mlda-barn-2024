@@ -1,3 +1,5 @@
 ***__pycache__
 *.sif
 out.txt
+data.csv
+.pth
