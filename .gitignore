@@ -3,4 +3,4 @@
 out.txt
 data.csv
 data_sorted.csv
-*.pth
+model/
