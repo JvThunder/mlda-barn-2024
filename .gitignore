@@ -3,4 +3,5 @@
 out.txt
 data.csv
 data_sorted.csv
-model/
+train_imitation/diffusion_policy
+.vscode
