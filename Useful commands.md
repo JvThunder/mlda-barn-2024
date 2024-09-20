@@ -34,7 +34,10 @@ source devel/setup.bash
 
 - Run one environment
 ```shell
+python run_rviz_auto_start.py --world_idx 0
 python run_rviz_kul.py --world_idx 0
+python run_rviz_imit.py --world_idx 0
+python eval_imit.py
 ```
 
 - Collect data from multiple environments

@@ -1,7 +1,6 @@
 ***__pycache__
 *.sif
 out.txt
-data.csv
-data_sorted.csv
+*.csv
 train_imitation/diffusion_policy
 .vscode

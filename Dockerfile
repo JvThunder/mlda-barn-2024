@@ -20,7 +20,7 @@ RUN make -j8 && make install
 
 RUN apt-get update && apt-get install -y python3-pip build-essential
 RUN pip3 install --upgrade pip
-RUN pip3 install defusedxml rospkg netifaces numpy jupyter scipy matplotlib casadi
+RUN pip3 install defusedxml rospkg netifaces numpy jupyter scipy matplotlib casadi torch scikit-learn pandas
 
 # Install ROS components
 RUN apt-get install -y ros-melodic-desktop-full ros-melodic-gmapping \

@@ -74,10 +74,10 @@ for batch in train_dataset:
 import torch
 from diffusion_policy.cnn_model import CNNModel
 
-# load CNN model from diffusion_policy/model/cnn_model.pth
+# load CNN model from model/cnn_model.pth
 lidar_cols = 720
 non_lidar_cols = 4
 no_actions = 2
 model = CNNModel(lidar_cols, non_lidar_cols, no_actions)
-model.load_state_dict(torch.load('diffusion_policy/model/cnn_model.pth'))
+model.load_state_dict(torch.load('model/cnn_model.pth'))
 print(model)

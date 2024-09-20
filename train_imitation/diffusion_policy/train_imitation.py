@@ -248,7 +248,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-NUM_EPOCHS = 1
+NUM_EPOCHS = 10
 losses = []
 save_loss_every = 1000
 total_loss = 0
