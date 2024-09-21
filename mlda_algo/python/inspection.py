@@ -104,6 +104,11 @@ class Inspection():
                     self.data_dict["lidar_" + str(i)] = data.ranges[i]
             self.update_row()
     
+    def calc_local(self, x, y, gx, gy, heading):
+        local_x = (gx - x) * np.cos(heading) + (gy - y) * np.sin(heading)
+        local_y = -(gx - x) * np.sin(heading) + (gy - y) * np.cos(heading)
+        return local_x, local_y
+
     def callback_odometry(self, data):
         if 1:
             self.odometry = data
@@ -134,6 +139,10 @@ class Inspection():
             self.data_dict["pose_heading"] = heading_rad
             self.data_dict["twist_linear"] = data.twist.twist.linear.x
             self.data_dict["twist_angular"] = data.twist.twist.angular.z
+
+            local_x, local_y = self.calc_local(data.pose.pose.position.x, data.pose.pose.position.y, 0, 10, heading_rad)
+            print("Local x: ", round(local_x,3), "; Local y: ", round(local_y,3))
+
             self.update_row()
     
     def callback_cmd_vel(self, data):

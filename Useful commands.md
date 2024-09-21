@@ -6,7 +6,7 @@
 docker build . -t barn:latest --no-cache
 
 docker run --rm -dt --name barn \
-	-e DISPLAY=":1" \
+	-e DISPLAY=":0" \
 	-e QT_X11_NO_MITSHM=1 \
 	-e LIBGL_ALWAYS_SOFTWARE=1 \
 	-v /tmp/.X11-unix:/tmp/.X11-unix \
@@ -37,6 +37,10 @@ source devel/setup.bash
 python run_rviz_auto_start.py --world_idx 0
 python run_rviz_kul.py --world_idx 0
 python run_rviz_imit.py --world_idx 0
+
+python run_rviz_kul.py --world_idx 1 --gui
+python run_rviz_imit.py --world_idx 1 --gui
+
 python eval_imit.py
 ```
 

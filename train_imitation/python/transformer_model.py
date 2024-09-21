@@ -30,7 +30,7 @@ class TransformerModel(nn.Module):
         self.transformer_encoder_2 = nn.TransformerEncoder(encoder_layer_2, num_layers=num_encoder_layers)
 
         # Linear layer to map the transformer output to actions
-        self.fc_out = nn.Linear(d_model, num_actions)
+        self.fc_out = nn.Linear(d_model * num_patches, num_actions)
 
     def forward(self, lidar, non_lidar):
         batch_size = lidar.size(0)
@@ -57,10 +57,14 @@ class TransformerModel(nn.Module):
         # Process the output of the cross-attention through the second encoder layer
         encoder_output = self.transformer_encoder_2(non_lidar_attended)  # (seq_len, batch_size, d_model)
 
-        # Aggregate over the sequence (optional, depends on your use case)
-        encoder_output = encoder_output.mean(dim=0)  # Aggregate over sequence (seq_len -> batch_size, d_model)
+        # Concatenate the encoder output over the sequence length
+        encoder_output = encoder_output.permute(1, 0, 2)
+        encoder_output = encoder_output.reshape(batch_size, -1)
 
         # Final linear layer to get the predicted actions
         actions = self.fc_out(encoder_output)
+
+        # clip to [0, 1] using sigmoid
+        actions = torch.sigmoid(actions)
         
         return actions

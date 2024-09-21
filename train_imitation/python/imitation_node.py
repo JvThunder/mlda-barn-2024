@@ -58,7 +58,7 @@ class ROSNode:
         self.mode = "safe"
         self.display = ""
 
-        self.rate = rospy.Rate(50)
+        self.rate = rospy.Rate(20)
 
         lidar_cols = 720
         non_lidar_cols = 2
@@ -197,8 +197,8 @@ class ROSNode:
         print(f"local_x:{round(local_x, 3)}, local_y:{round(local_y, 3)}")
         self.data_dict["local_x"] = local_x
         self.data_dict["local_y"] = local_y
-        self.data_dict["twist_linear"] = data.twist.twist.linear.x
-        self.data_dict["twist_angular"] = data.twist.twist.angular.z
+        # self.data_dict["twist_linear"] = data.twist.twist.linear.x
+        # self.data_dict["twist_angular"] = data.twist.twist.angular.z
 
     # def callback_global_plan(self, data):
     #     self.global_plan = data
@@ -249,55 +249,51 @@ class ROSNode:
         self.rate.sleep()
     
     def compute_velocity(self):
-        while not rospy.is_shutdown():
+        if len(self.data_dict) >= len(self.lidar_rows + self.non_lidar_rows):
+            start = time.time()
+
+            # Normalize the data
+            for column in self.data_dict.keys():
+                self.data_dict[column] = (self.data_dict[column] - self.scaler_params['min'][column]) / (self.scaler_params['max'][column] - self.scaler_params['min'][column])
+                self.data_dict[column] = np.clip(self.data_dict[column], 0, 1)
+
+            data = pd.DataFrame(self.data_dict, columns=self.data_dict.keys(), index=[0])
+            lidar = data[self.lidar_rows].values
+            non_lidar = data[self.non_lidar_rows].values
+
+            tensor_lidar = torch.tensor(lidar, dtype=torch.float32)
+            tensor_non_lidar = torch.tensor(non_lidar, dtype=torch.float32)
+
+            print("lidar")
+            print(tensor_lidar.shape)
+            print("non_lidar")
+            print(tensor_non_lidar)
+
+            self.model.eval()
+            actions = self.model(tensor_lidar, tensor_non_lidar)
+            v, w = actions[0][0].item(), actions[0][1].item()
+            v, w = np.clip(v, 0, 1), np.clip(w, 0, 1)
+
+            # print("-----------------------")
+            # print(f"norm V:{v}, norm W:{w}")
+
+            # Un-normalize the actions
+            v = v * (self.scaler_params['max']['cmd_vel_linear'] - self.scaler_params['min']['cmd_vel_linear']) + self.scaler_params['min']['cmd_vel_linear']
+            w = w * (self.scaler_params['max']['cmd_vel_angular'] - self.scaler_params['min']['cmd_vel_angular']) + self.scaler_params['min']['cmd_vel_angular']
+
+            self.v = v
+            self.w = w
+
+            end = time.time()
+
+            print("------------- Computed velocity --------------")
+            print("Time taken: {}".format(end - start))
             
-            if len(self.data_dict) == len(self.lidar_rows + self.non_lidar_rows):
-                # Normalize the data
-                for column in self.data_dict.keys():
-                    self.data_dict[column] = (self.data_dict[column] - self.scaler_params['min'][column]) / (self.scaler_params['max'][column] - self.scaler_params['min'][column])
-                start = time.time()
-
-                data = pd.DataFrame(self.data_dict, columns=self.data_dict.keys(), index=[0])
-                data = data[self.lidar_rows + self.non_lidar_rows]
-
-                lidar = data[self.lidar_rows].values
-                non_lidar = data[self.non_lidar_rows].values
-
-                tensor_lidar = torch.tensor(lidar, dtype=torch.float32)
-                tensor_non_lidar = torch.tensor(non_lidar, dtype=torch.float32)
-
-                # print("lidar")
-                # print(tensor_lidar)
-                # print("non_lidar")
-                # print(tensor_non_lidar)
-
-                self.model.eval()
-                actions = self.model(tensor_lidar, tensor_non_lidar)
-                v, w = actions[0][0].item(), actions[0][1].item()
-
-                # print("-----------------------")
-                # print(f"norm V:{v}, norm W:{w}")
-
-                # Un-normalize the actions
-                v = v * (self.scaler_params['max']['cmd_vel_linear'] - self.scaler_params['min']['cmd_vel_linear']) + self.scaler_params['min']['cmd_vel_linear']
-                w = w * (self.scaler_params['max']['cmd_vel_angular'] - self.scaler_params['min']['cmd_vel_angular']) + self.scaler_params['min']['cmd_vel_angular']
-
-                end = time.time()
-
-                print("------------- Computed velocity --------------")
-                print("Time taken: {}".format(end - start))
-
-                # Update the velocity
-                with self.lock:
-                    self.v = v
-                    self.w = w
 
     def run(self):
         try:
-            while not rospy.is_shutdown():
-                # Publish the velocity
-                with self.lock:
-                    self.publish_velocity(self.v, self.w)
+            self.compute_velocity()
+            self.publish_velocity(self.v, self.w)
         except Exception as e:
             print("ERROR")
             rospy.logerr(e)
