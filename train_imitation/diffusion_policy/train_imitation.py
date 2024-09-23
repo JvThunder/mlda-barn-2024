@@ -140,10 +140,12 @@ class KULBarnDiffusionDataset(BaseLowdimDataset):
         self.lidar_cols = [col for col in self.data.columns if 'lidar' in col]
         self.actions_cols = [col for col in self.data.columns if 'cmd' in col]
         self.non_lidar_cols = [col for col in self.data.columns if col not in self.lidar_cols and col not in self.actions_cols and col != 'world_idx']
+        self.obs_cols = self.lidar_cols + self.non_lidar_cols
 
         self.lidar_data = self.data[self.lidar_cols].values
         self.non_lidar_data = self.data[self.non_lidar_cols].values
         self.actions_data = self.data[self.actions_cols].values
+        self.obs_data = self.data[self.obs_cols].values
 
         print("Lidar Columns:", self.lidar_cols)
         print("Non Lidar Columns:", self.non_lidar_cols)
@@ -182,8 +184,9 @@ class KULBarnDiffusionDataset(BaseLowdimDataset):
         end = idx[2]
 
         data = {
-            'obs': self.lidar_data[start:end],
-            'cond': self.non_lidar_data[start],
+            # 'obs': self.lidar_data[start:end],
+            # 'cond': self.non_lidar_data[start],
+            'obs': self.obs_data[start:end],
             'action': self.actions_data[start:end],
         }
         torch_data = dict_apply(data, torch.from_numpy)
@@ -193,8 +196,9 @@ class KULBarnDiffusionDataset(BaseLowdimDataset):
         normalizer = LinearNormalizer()
         # train it in using self.data as a dictionary
         data_dict = {
-            'obs': self.lidar_data,
-            'cond': self.non_lidar_data,
+            # 'obs': self.lidar_data,
+            # 'cond': self.non_lidar_data,
+            'obs': self.obs_data,
             'action': self.actions_data
         }
         normalizer.fit(data=data_dict, mode=mode, **kwargs)
@@ -211,11 +215,11 @@ print(len(train_dataloader))
 for batch in train_dataloader:
     # print(batch)
     print(batch['obs'].shape)
-    print(batch['cond'].shape)
+    # print(batch['cond'].shape)
     print(batch['action'].shape)
     break
 
-from diffusion_policy.policy.diffusion_unet_lidar_policy import DiffusionUnetLidarPolicy
+from diffusion_policy.policy.diffusion_unet_lowdim_policy import DiffusionUnetLowdimPolicy
 from diffusion_policy.model.diffusion.conditional_unet1d import ConditionalUnet1D
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
@@ -224,18 +228,19 @@ print(device)
 obs_dim = batch['obs'].shape[-1]
 action_dim = batch['action'].shape[-1]
 input_dim = obs_dim + action_dim
-model = ConditionalUnet1D(input_dim=input_dim, global_cond_dim=4)
+model = ConditionalUnet1D(input_dim=action_dim, global_cond_dim=obs_dim)
 noise_scheduler = DDPMScheduler(num_train_timesteps=1000, beta_schedule='linear')
 horizon = 4
-policy = DiffusionUnetLidarPolicy(
+policy = DiffusionUnetLowdimPolicy(
     model=model, 
     noise_scheduler=noise_scheduler, 
     horizon=horizon, 
     obs_dim=obs_dim, 
     action_dim=action_dim, 
-    n_obs_steps=4,
+    n_obs_steps=1,
     n_action_steps=4,
-    pred_action_steps_only=False,
+    # pred_action_steps_only=True,
+    obs_as_global_cond=True,
 )
 
 policy.set_normalizer(normalizer)
@@ -248,7 +253,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-NUM_EPOCHS = 10
+NUM_EPOCHS = 1
 losses = []
 save_loss_every = 1000
 total_loss = 0
@@ -273,6 +278,16 @@ for epoch in range(NUM_EPOCHS):
             losses.append(curr_loss)
             total_loss = 0
             count = 0
+
+# save losses
+import matplotlib.pyplot as plt
+plt.plot(losses)
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Training Loss')
+
+save_path = 'diffuser_losses.png'
+plt.savefig(save_path)
 
 # save the policy
 save_path = 'diffuser_policy.pth'
