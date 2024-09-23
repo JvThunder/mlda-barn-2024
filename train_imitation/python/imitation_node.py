@@ -205,7 +205,7 @@ class ROSNode:
         # print(f"local_x:{round(local_x, 3)}, local_y:{round(local_y, 3)}")
         self.data_dict["local_x"] = local_x
         self.data_dict["local_y"] = local_y
-        self.data_dict["distance"] = distance
+        # self.data_dict["distance"] = distance
         self.data_dict["twist_linear"] = data.twist.twist.linear.x
         self.data_dict["twist_angular"] = data.twist.twist.angular.z
         # print("====================================")
@@ -278,27 +278,27 @@ class ROSNode:
 
     
     def compute_velocity(self):
-        self.cycle += 1
-        if self.cycle % 3 == 0 and all(key in self.data_dict.keys() for key in self.lidar_cols + self.non_lidar_cols):
+        if len(self.data_dict.keys()) >= len(self.lidar_cols) + len(self.non_lidar_cols):
             start = time.time()
 
-            data_dict = self.data_dict.copy()
+            data = pd.DataFrame(self.data_dict, columns=self.data_dict, index=[0])
             # Normalize the data
-            for column in data_dict.keys():
+            for column in data.columns:
                 if column in self.scaler_params['min']:  
-                    data_dict[column] = (data_dict[column] - self.scaler_params['min'][column]) / (self.scaler_params['max'][column] - self.scaler_params['min'][column])
-                    data_dict[column] = np.clip(data_dict[column], 0, 1)
-
-            data = pd.DataFrame(data_dict, columns=data_dict, index=[0])
+                    data[column] = (data[column] - self.scaler_params['min'][column]) / (self.scaler_params['max'][column] - self.scaler_params['min'][column])
+            
             tensor_lidar = torch.tensor(data[self.lidar_cols].values, dtype=torch.float32)
             tensor_non_lidar = torch.tensor(data[self.non_lidar_cols].values, dtype=torch.float32)
+            # clip the values
+            tensor_lidar = torch.clamp(tensor_lidar, 0, 1)
+            tensor_non_lidar = torch.clamp(tensor_non_lidar, 0, 1)
 
             # print("Tensor LiDAR: ", tensor_lidar)
-            print("Tensor Non-LiDAR: ", tensor_non_lidar)
+            # print("Tensor Non-LiDAR: ", tensor_non_lidar)
             actions = self.model(tensor_lidar, tensor_non_lidar)
             v, w = actions[0][0].item(), actions[0][1].item()
 
-            print("Predicted v: ", v, "; Predicted w: ", w)
+            # print("Predicted v: ", v, "; Predicted w: ", w)
             v = np.clip(v, 0, 1)
             w = np.clip(w, 0, 1)
             

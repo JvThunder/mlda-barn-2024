@@ -7,8 +7,10 @@ df = df[df['timestep'] == 0]
 no_world_idx = len(df['world_idx'].unique())
 print(no_world_idx)
 
+print(df.groupby(['world_idx']).size())
+
 # print number of success for each world idx
-grouped = df.groupby(['world_idx'])['success'].any().astype(int)
+grouped = df.groupby(['world_idx'])['success'].any()
 success = grouped.sum()
 
 print(grouped)

@@ -40,7 +40,7 @@ class Inspection():
         
         # init CSV File
         print("Write to CSV file")
-        file_path = "/jackal_ws/src/mlda-barn-2024/test_data.csv"
+        file_path = "/jackal_ws/src/mlda-barn-2024/imit_data_2.csv"
         self.metadata_rows = ["success", "actual_time", "optimal_time", "world_idx", "timestep"]
         self.lidar_rows = ["lidar_" + str(i) for i in range(720)]
         self.odometry_rows = ['pos_x', 'pos_y', 'pose_heading', 'twist_linear', 'twist_angular']

@@ -13,6 +13,48 @@ from jackal_helper.msg import ResultData
 INIT_POSITION = [-2, 3, 1.57]  # in world frame
 GOAL_POSITION = [0, 10]  # relative to the initial position
 
+from gazebo_msgs.srv import GetPhysicsProperties, SetPhysicsProperties
+from gazebo_msgs.msg import ODEPhysics
+import rospy
+
+def set_slow_simulation(factor=0.1):
+    rospy.wait_for_service('/gazebo/get_physics_properties')
+    rospy.wait_for_service('/gazebo/set_physics_properties')
+
+    try:
+        get_physics_properties = rospy.ServiceProxy('/gazebo/get_physics_properties', GetPhysicsProperties)
+        set_physics_properties = rospy.ServiceProxy('/gazebo/set_physics_properties', SetPhysicsProperties)
+
+        # Get the current physics properties
+        current_physics = get_physics_properties()
+
+        # Set the new real-time factor (reduce it to slow down the simulation)
+        new_ode_config = ODEPhysics(
+            auto_disable_bodies=current_physics.ode_config.auto_disable_bodies,
+            sor_pgs_precon_iters=current_physics.ode_config.sor_pgs_precon_iters,
+            sor_pgs_iters=current_physics.ode_config.sor_pgs_iters,
+            sor_pgs_w=current_physics.ode_config.sor_pgs_w,
+            sor_pgs_rms_error_tol=current_physics.ode_config.sor_pgs_rms_error_tol,
+            contact_surface_layer=current_physics.ode_config.contact_surface_layer,
+            contact_max_correcting_vel=current_physics.ode_config.contact_max_correcting_vel,
+            cfm=current_physics.ode_config.cfm,
+            erp=current_physics.ode_config.erp,
+            max_contacts=current_physics.ode_config.max_contacts
+        )
+
+        # Create the request and set the modified properties
+        set_physics_properties(
+            time_step=current_physics.time_step,
+            max_update_rate=factor * current_physics.max_update_rate,  # Slow down simulation
+            gravity=current_physics.gravity,
+            ode_config=new_ode_config
+        )
+
+        print("Simulation slowed down by a factor of {}".format(factor))
+
+    except rospy.ServiceException as e:
+        print("Failed to modify physics properties: {}".format(e))
+
 def compute_distance(p1, p2):
     return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
 
@@ -70,6 +112,7 @@ if __name__ == "__main__":
     
     rospy.init_node('gym', anonymous=True) #, log_level=rospy.FATAL)
     rospy.set_param('/use_sim_time', True)
+    set_slow_simulation(0.05)
 
     # Initialize the node
     pub = rospy.Publisher('/result_data', ResultData, queue_size=10)
@@ -156,6 +199,11 @@ if __name__ == "__main__":
         # print("Time: %.2f (s), x: %.2f (m), y: %.2f (m)" %(curr_time - start_time, *curr_coor), end="\r")
         print("Current position: %.2f, %.2f" %(curr_coor[0], curr_coor[1]))
         print("Goal position: %.2f, %.2f" %(goal_coor[0], goal_coor[1]))
+        
+        if compute_distance(goal_coor, curr_coor) > 15:
+            collided = True
+            break
+
         collided = gazebo_sim.get_hard_collision()
         while rospy.get_time() - curr_time < 0.1:
             time.sleep(0.01)
