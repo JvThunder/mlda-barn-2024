@@ -13,7 +13,7 @@ import sensor_msgs.point_cloud2 as pc2
 import laser_geometry.laser_geometry as lg
 
 from cnn_model import CNNModel
-from transformer_model import TransformerModel
+from transformer_model import Transformer
 
 from sklearn.preprocessing import MinMaxScaler
 import torch
@@ -22,6 +22,8 @@ import pandas as pd
 import json
 import threading
 import time
+from collections import namedtuple
+import easydict
 
 INF = 10000
 
@@ -75,10 +77,23 @@ class ROSNode:
 
         # self.model = CNNModel(lidar_cols, non_lidar_cols, no_actions)
         # self.model.load_state_dict(torch.load('/jackal_ws/src/mlda-barn-2024/train_imitation/model/cnn_model.pth', map_location=torch.device('cpu')))
-        self.model = TransformerModel(lidar_cols, non_lidar_cols, no_actions)
+        
+        config_dict = easydict.EasyDict({
+            "input_dim": 32,
+            "num_patch": 36,
+            "model_dim": 32,
+            "ffn_dim": 256,
+            "attention_heads": 4,
+            "attention_dropout": 0.0,
+            "dropout": 0.2,
+            "encoder_layers": 3,
+            "decoder_layers": 3,
+            "device": 'cpu',
+        })
+
+        self.model = Transformer(config_dict)
         self.model.load_state_dict(torch.load('/jackal_ws/src/mlda-barn-2024/train_imitation/model/transformer_model.pth', map_location=torch.device('cpu')))
         self.model.eval()
-        # print(self.model)
 
         self.v = 0
         self.w = 0
@@ -287,15 +302,17 @@ class ROSNode:
                 if column in self.scaler_params['min']:  
                     data[column] = (data[column] - self.scaler_params['min'][column]) / (self.scaler_params['max'][column] - self.scaler_params['min'][column])
             
-            tensor_lidar = torch.tensor(data[self.lidar_cols].values, dtype=torch.float32)
-            tensor_non_lidar = torch.tensor(data[self.non_lidar_cols].values, dtype=torch.float32)
+            tensor_lidar = torch.tensor(data[self.lidar_cols].values, dtype=torch.float32).unsqueeze(-1)
+            tensor_non_lidar = torch.tensor(data[self.non_lidar_cols].values, dtype=torch.float32).unsqueeze(-1)
             # clip the values
             tensor_lidar = torch.clamp(tensor_lidar, 0, 1)
             tensor_non_lidar = torch.clamp(tensor_non_lidar, 0, 1)
 
             # print("Tensor LiDAR: ", tensor_lidar)
             # print("Tensor Non-LiDAR: ", tensor_non_lidar)
-            actions = self.model(tensor_lidar, tensor_non_lidar)
+            # print("Tensor LiDAR Shape: ", tensor_lidar.shape)
+            # print("Tensor Non-LiDAR Shape: ", tensor_non_lidar.shape)
+            actions, _, _ = self.model(tensor_lidar, tensor_non_lidar)
             v, w = actions[0][0].item(), actions[0][1].item()
 
             # print("Predicted v: ", v, "; Predicted w: ", w)
