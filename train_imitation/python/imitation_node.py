@@ -63,12 +63,13 @@ class ROSNode:
         self.display = ""
 
         self.rate = rospy.Rate(50)
-        
+        self.multiplier = 0.3
         self.look_ahead = 0.325
         self.data_dict = {}
+        self.lidar_data = []
 
         self.lidar_cols = ["lidar_" + str(i) for i in range(0, 720, 1)]
-        self.non_lidar_cols = ['local_x', 'local_y', 'twist_linear', 'twist_angular']
+        self.non_lidar_cols = ['local_x', 'local_y']
         self.action_cols = ['cmd_vel_linear', 'cmd_vel_angular']
 
         lidar_cols = len(self.lidar_cols)
@@ -129,19 +130,9 @@ class ROSNode:
         # Start the computation thread
         # self.thread = threading.Thread(target=self.compute_velocity)
         # self.thread.start()
-
-        self.cycle = 0
     
     def callback_front_scan(self, data):
-        # print("Scan points: ", len(data.ranges), "From Max: ", data.range_max, "| Min: ", round(data.range_min,2))
-        # print("Angle from: ", np.degrees(data.angle_min).round(2), " to: ", np.degrees(data.angle_max).round(2), " increment: ", np.degrees(data.angle_increment).round(3))
-        
-        # update the data_dict
-        for i in range(720):
-            if data.ranges[i] > data.range_max:
-                self.data_dict["lidar_" + str(i)] = 10
-            else:
-                self.data_dict["lidar_" + str(i)] = data.ranges[i]
+        self.lidar_data = data.ranges
 
     def callback_cloud(self, data):
         point_generator = pc2.read_points(data)
@@ -221,8 +212,8 @@ class ROSNode:
         self.data_dict["local_x"] = local_x
         self.data_dict["local_y"] = local_y
         # self.data_dict["distance"] = distance
-        self.data_dict["twist_linear"] = data.twist.twist.linear.x
-        self.data_dict["twist_angular"] = data.twist.twist.angular.z
+        # self.data_dict["twist_linear"] = data.twist.twist.linear.x
+        # self.data_dict["twist_angular"] = data.twist.twist.angular.z
         # print("====================================")
         # print("Local x: ", round(local_x,3), "; Local y: ", round(local_y,3))
         # print("Twist Linear: ", round(data.twist.twist.linear.x,3), "; Twist Angular: ", round(data.twist.twist.angular.z,3))
@@ -270,8 +261,8 @@ class ROSNode:
 
     def publish_velocity(self, v_opt, w_opt):
         vel = Twist()
-        vel.linear.x = v_opt
-        vel.angular.z = w_opt
+        vel.linear.x = np.clip(v_opt * self.multiplier, -0.3, 0.8)
+        vel.angular.z = np.clip(w_opt, -1.5, 1.5)
         self.pub_vel.publish(vel)
         self.rate.sleep()
 
@@ -281,6 +272,13 @@ class ROSNode:
         local_goal_x = 0
         local_goal_y = 0
         global_plan = self.global_plan
+
+        if len(global_plan.poses) == 0:
+            print("------------- No global plan ----------------")
+            self.multiplier = 0.3
+        else:
+            self.multiplier = 0.9
+
         for i in range(len(self.global_plan.poses)):
             global_x = global_plan.poses[i].pose.position.x
             global_y = global_plan.poses[i].pose.position.y
@@ -293,35 +291,19 @@ class ROSNode:
 
     
     def compute_velocity(self):
-        if len(self.data_dict.keys()) >= len(self.lidar_cols) + len(self.non_lidar_cols):
+        # print("Lidar Data: ", len(self.lidar_data))
+        # print("Data Dict: ", len(self.data_dict.keys()))
+        if len(self.data_dict.keys()) == len(self.non_lidar_cols) and len(self.lidar_data) == 720:
             start = time.time()
 
-            data = pd.DataFrame(self.data_dict, columns=self.data_dict, index=[0])
-            # Normalize the data
-            for column in data.columns:
-                if column in self.scaler_params['min']:  
-                    data[column] = (data[column] - self.scaler_params['min'][column]) / (self.scaler_params['max'][column] - self.scaler_params['min'][column])
-            
-            tensor_lidar = torch.tensor(data[self.lidar_cols].values, dtype=torch.float32).unsqueeze(-1)
-            tensor_non_lidar = torch.tensor(data[self.non_lidar_cols].values, dtype=torch.float32).unsqueeze(-1)
-            # clip the values
-            tensor_lidar = torch.clamp(tensor_lidar, 0, 1)
-            tensor_non_lidar = torch.clamp(tensor_non_lidar, 0, 1)
+            lidar_data = np.clip(self.lidar_data, 0, 5)
+            tensor_lidar = torch.tensor(lidar_data, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)            
+            tensor_non_lidar = torch.tensor([self.data_dict["local_x"], self.data_dict["local_y"]], 
+                                            dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
 
-            # print("Tensor LiDAR: ", tensor_lidar)
-            # print("Tensor Non-LiDAR: ", tensor_non_lidar)
-            # print("Tensor LiDAR Shape: ", tensor_lidar.shape)
-            # print("Tensor Non-LiDAR Shape: ", tensor_non_lidar.shape)
             actions, _, _ = self.model(tensor_lidar, tensor_non_lidar)
             v, w = actions[0][0].item(), actions[0][1].item()
-
-            # print("Predicted v: ", v, "; Predicted w: ", w)
-            v = np.clip(v, 0, 1)
-            w = np.clip(w, 0, 1)
-            
-
-            self.v = v * (self.scaler_params['max']['cmd_vel_linear'] - self.scaler_params['min']['cmd_vel_linear']) + self.scaler_params['min']['cmd_vel_linear']
-            self.w = w * (self.scaler_params['max']['cmd_vel_angular'] - self.scaler_params['min']['cmd_vel_angular']) + self.scaler_params['min']['cmd_vel_angular']
+            self.v, self.w = v, w
             
             end = time.time()
             print("Time taken: {}".format(end - start))

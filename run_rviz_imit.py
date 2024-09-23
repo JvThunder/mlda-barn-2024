@@ -110,9 +110,9 @@ if __name__ == "__main__":
     ])
     time.sleep(5)  # sleep to wait until the gazebo being created
     
-    rospy.init_node('gym', anonymous=True) #, log_level=rospy.FATAL)
+    rospy.init_node('gym', anonymous=True) #, log_level=rospy.FATAL
     rospy.set_param('/use_sim_time', True)
-    set_slow_simulation(0.05)
+    set_slow_simulation(0.1)
 
     # Initialize the node
     pub = rospy.Publisher('/result_data', ResultData, queue_size=10)
