@@ -13,6 +13,13 @@ docker run --rm -dt --name barn \
 	-v $(pwd):/jackal_ws/src/mlda-barn-2024 \
 	barn:latest
 
+docker run --rm -dt --name barn \
+	-e QT_X11_NO_MITSHM=1 \
+	-e LIBGL_ALWAYS_SOFTWARE=1 \
+	-v /tmp/.X11-unix:/tmp/.X11-unix \
+	-v $(pwd):/jackal_ws/src/mlda-barn-2024 \
+	barn:latest
+
 docker stop <id>
 ```
 
@@ -32,20 +39,12 @@ catkin_make
 source devel/setup.bash
 ```
 
-- Run one environment
+- Run environment
 ```shell
 python run_rviz_auto_start.py --world_idx 0
-python run_rviz_kul.py --world_idx 0
+python run_rviz_kul.py --world_idx 0 
 python run_rviz_imit.py --world_idx 0
 
-python run_rviz_kul.py --world_idx 1 --gui
-python run_rviz_imit.py --world_idx 1 --gui
-
-python eval_imit.py
-```
-
-- Collect data from multiple environments
-```shell
-./get_kul_data.sh
 python get_kul_data.py
+python eval_imit.py
 ```

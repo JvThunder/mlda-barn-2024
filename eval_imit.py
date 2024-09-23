@@ -4,7 +4,7 @@ import time
 
 print(f"==== Run starting from 0 to 299 ======")
 
-RETRIES = 3
+RETRIES = 5
 for j in range(0, 300, 5):
     print(f"==== Running world {j} ====")
     for attempt in range(RETRIES):  # Retry up to 3 times

@@ -1,6 +1,6 @@
 import pandas as pd
 
-df = pd.read_csv('testhard.csv', sep=' ')
+df = pd.read_csv('imit_data.csv', sep=' ')
 
 score = 0
 for i in range(df.shape[0]):

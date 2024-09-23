@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class TransformerModel(nn.Module):
-    def __init__(self, num_lidar_features, num_non_lidar_features, num_actions, d_model=32, nhead=4, num_encoder_layers=3, num_patches=36):
+    def __init__(self, num_lidar_features, num_non_lidar_features, num_actions, d_model=64, nhead=4, num_encoder_layers=3, num_patches=36):
         super(TransformerModel, self).__init__()
 
         self.d_model = d_model
@@ -24,13 +24,18 @@ class TransformerModel(nn.Module):
 
         # Transformer Decoder (cross-attention using Q and K from LiDAR encoder and V from non-lidar data)
         self.multihead_attention = nn.MultiheadAttention(embed_dim=d_model, num_heads=nhead)
+        self.norm_1 = nn.LayerNorm(d_model)
+        self.ff = nn.Linear(d_model, d_model)
+        self.norm_2 = nn.LayerNorm(d_model)
 
         # Second Encoder Layer for post-processing
         encoder_layer_2 = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead)
-        self.transformer_encoder_2 = nn.TransformerEncoder(encoder_layer_2, num_layers=num_encoder_layers)
+        self.transformer_encoder_2 = nn.TransformerEncoder(encoder_layer_2, num_layers=num_encoder_layers-1)
 
         # Linear layer to map the transformer output to actions
         self.fc_out = nn.Linear(d_model * num_patches, num_actions)
+
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, lidar, non_lidar):
         batch_size = lidar.size(0)
@@ -39,7 +44,7 @@ class TransformerModel(nn.Module):
         lidar_patches = lidar.view(batch_size, self.num_patches, self.patch_size)
 
         # Linear projection of LiDAR patches and adding positional encoding
-        lidar_embed = self.lidar_embedding(lidar_patches) + self.positional_encoding.unsqueeze(0)
+        lidar_embed = self.lidar_embedding(lidar_patches) + self.positional_encoding.unsqueeze(0).expand(batch_size, -1, -1)
         lidar_embed = lidar_embed.permute(1, 0, 2)  # Convert to (seq_len, batch_size, d_model)
 
         # Process through the transformer encoder for LiDAR data
@@ -53,9 +58,12 @@ class TransformerModel(nn.Module):
 
         # Cross-attention: Use LiDAR encoded data as Q and K, non-lidar as V
         non_lidar_attended, _ = self.multihead_attention(query=lidar_encoded, key=lidar_encoded, value=non_lidar_embed)
+        non_lidar_embedding = self.norm_1(non_lidar_attended + non_lidar_embed)
+        non_lidar_ff = self.ff(non_lidar_attended)
+        non_lidar_embedding = self.norm_2(non_lidar_ff + non_lidar_attended)
 
         # Process the output of the cross-attention through the second encoder layer
-        encoder_output = self.transformer_encoder_2(non_lidar_attended)  # (seq_len, batch_size, d_model)
+        encoder_output = self.transformer_encoder_2(non_lidar_embedding)  # (seq_len, batch_size, d_model)
 
         # Concatenate the encoder output over the sequence length
         encoder_output = encoder_output.permute(1, 0, 2)
@@ -64,7 +72,6 @@ class TransformerModel(nn.Module):
         # Final linear layer to get the predicted actions
         actions = self.fc_out(encoder_output)
 
-        # clip to [0, 1] using sigmoid
-        actions = torch.sigmoid(actions)
+        actions = self.sigmoid(actions)
         
         return actions

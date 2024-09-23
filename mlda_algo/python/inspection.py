@@ -26,6 +26,10 @@ class Inspection():
         self.TOPIC_MPC = "/mpc_plan" # MPC plan
         self.RESULT_DATA = "/result_data" # Result Data
         
+        self.data = []
+        self.data_dict = {}
+        self.look_ahead = 0.325
+
         # Object to store
         self.scan = LaserScan()
         self.cmd_vel = Twist()
@@ -33,6 +37,17 @@ class Inspection():
         self.local_plan = Path()
         self.odometry = Odometry()
         self.footprint = PolygonStamped() 
+        
+        # init CSV File
+        print("Write to CSV file")
+        file_path = "/jackal_ws/src/mlda-barn-2024/test_data.csv"
+        self.metadata_rows = ["success", "actual_time", "optimal_time", "world_idx", "timestep"]
+        self.lidar_rows = ["lidar_" + str(i) for i in range(720)]
+        self.odometry_rows = ['pos_x', 'pos_y', 'pose_heading', 'twist_linear', 'twist_angular']
+        self.action_rows = ['cmd_vel_linear', 'cmd_vel_angular']
+        self.goal_rows = ['local_goal_x', 'local_goal_y']
+        self.data_rows = self.lidar_rows + self.odometry_rows + self.action_rows + self.goal_rows
+        self.fieldnames = self.metadata_rows + self.data_rows
 
         # Subscribe        
         self.sub_front_scan = rospy.Subscriber(self.TOPIC_FRONT_SCAN, LaserScan, self.callback_front_scan)
@@ -43,16 +58,6 @@ class Inspection():
         self.sub_cmd_vel = rospy.Subscriber(self.TOPIC_CMD_VEL, Twist, self.callback_cmd_vel)
         self.sub_result = rospy.Subscriber(self.RESULT_DATA, ResultData, self.callback_result_data)
         
-        # init CSV File
-        print("Write to CSV file")
-        file_path = "/jackal_ws/src/mlda-barn-2024/transformer_data.csv"
-        self.metadata_rows = ["success", "actual_time", "optimal_time", "goal_x", "goal_y", "world_idx"]
-        self.lidar_rows = ["lidar_" + str(i) for i in range(720)]
-        self.odometry_rows = ['pos_x', 'pos_y', 'pose_heading', 'twist_linear', 'twist_angular']
-        self.action_rows = ['cmd_vel_linear', 'cmd_vel_angular']
-        self.data_rows = self.lidar_rows + self.odometry_rows + self.action_rows
-        self.fieldnames = self.metadata_rows + self.data_rows
-        
         file_exist = False
         if os.path.exists(file_path):
             file_exist = True
@@ -62,13 +67,37 @@ class Inspection():
         if not file_exist:
             self.writer.writeheader()
 
-        self.data = []
-        self.data_dict = {}
+    def compute_local_goal(self, pos_x, pos_y):
+        # check which is shortest distance to pos
+        min_dist = INF_CAP
+        local_goal_x = 0
+        local_goal_y = 0
+        global_plan = self.global_plan
+        for i in range(len(global_plan.poses)):
+            global_x = global_plan.poses[i].pose.position.x
+            global_y = global_plan.poses[i].pose.position.y
+            dist = np.sqrt((pos_x - global_x)**2 + (pos_y - global_y)**2)
+            if dist < min_dist and dist > self.look_ahead:
+                min_dist = dist
+                local_goal_x = global_x
+                local_goal_y = global_y
+        return local_goal_x, local_goal_y
 
     def update_row(self):
-        if len(self.data_dict) == len(self.data_rows):
-            self.data.append(self.data_dict)
+        # check if global_plan has attribute poses
+        if len(self.data_dict) >= len(self.data_rows) - len(self.goal_rows) and len(self.global_plan.poses) > 0:
+            # check if data_dict is NaN
+            data_dict = copy.deepcopy(self.data_dict)
             self.data_dict = {}
+            for key in data_dict.keys():
+                if np.isnan(data_dict[key]):
+                    return
+                
+            local_goal_x, local_goal_y = self.compute_local_goal(data_dict["pos_x"], data_dict["pos_y"])
+            data_dict["local_goal_x"] = local_goal_x
+            data_dict["local_goal_y"] = local_goal_y
+            self.data.append(data_dict)
+            
 
     def callback_result_data(self, metadata):
         print("---- Processing Result Data ----")
@@ -82,8 +111,7 @@ class Inspection():
             data[i]["success"] = metadata.success
             data[i]["actual_time"] = metadata.actual_time
             data[i]["optimal_time"] = metadata.optimal_time
-            data[i]["goal_x"] = metadata.goal_x
-            data[i]["goal_y"] = metadata.goal_y
+            data[i]["timestep"] = i
 
         # if metadata.success:
         #     self.writer.writerows(data)
@@ -99,7 +127,7 @@ class Inspection():
             assert(len(data.ranges) == 720)
             for i in range(720):
                 if data.ranges[i] > data.range_max:
-                    self.data_dict["lidar_" + str(i)] = data.range_max
+                    self.data_dict["lidar_" + str(i)] = 10
                 else:
                     self.data_dict["lidar_" + str(i)] = data.ranges[i]
             self.update_row()
@@ -140,8 +168,8 @@ class Inspection():
             self.data_dict["twist_linear"] = data.twist.twist.linear.x
             self.data_dict["twist_angular"] = data.twist.twist.angular.z
 
-            local_x, local_y = self.calc_local(data.pose.pose.position.x, data.pose.pose.position.y, 0, 10, heading_rad)
-            print("Local x: ", round(local_x,3), "; Local y: ", round(local_y,3))
+            # local_x, local_y = self.calc_local(data.pose.pose.position.x, data.pose.pose.position.y, 0, 10, heading_rad)
+            # print("Local x: ", round(local_x,3), "; Local y: ", round(local_y,3))
 
             self.update_row()
     
