@@ -2,7 +2,9 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import easydict
+import time
+import random
 
 class MultiHeadAttention(nn.Module):
     def __init__(
@@ -95,7 +97,7 @@ class EmbeddingLidar(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.len_lidar = 720
+        self.len_lidar = config.lidar_dim
         self.num_patch = config.num_patch
         self.dim_patch = self.len_lidar // self.num_patch
         self.model_dim = config.model_dim
@@ -232,11 +234,12 @@ class Transformer(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+        self.non_lidar_dim = config.non_lidar_dim
         self.model_dim = config.model_dim
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
 
-        self.prediction_head = nn.Linear(self.model_dim * 2, 2)
+        self.prediction_head = nn.Linear(self.model_dim * self.non_lidar_dim, 2)
 
         self.init_weights()
 
@@ -256,7 +259,38 @@ class Transformer(nn.Module):
             trg,
             encoder_output
         )
-        decoder_output = decoder_output.view(-1, self.model_dim * 2)
+        decoder_output = decoder_output.view(-1, self.model_dim * self.non_lidar_dim)
         decoder_output = self.prediction_head(decoder_output)
         
         return decoder_output, encoder_attention_scores, decoder_attention_scores
+if __name__ == "__main__":
+    start_time = time.time()
+    config_dict = easydict.EasyDict({
+        "input_dim": 32,
+        "num_patch": 36,
+        "model_dim": 32,
+        "ffn_dim": 256,
+        "attention_heads": 4,
+        "attention_dropout": 0.0,
+        "dropout": 0.2,
+        "encoder_layers": 3,
+        "decoder_layers": 3,
+        "device": 'cpu',
+        "lidar_dim": 720,
+    })
+    model = Transformer(config_dict)
+    filepath = '/jackal_ws/src/mlda-barn-2024/train_imitation/diffusion_policy/transformer_model.pth'
+    model.load_state_dict(torch.load(filepath, map_location=torch.device('cpu')))
+    model.eval()
+    print(model)
+
+    # test the inference time
+    lidar_data = [random.random() for _ in range(720)]
+    non_lidar_data = [random.random() for _ in range(3)]
+
+    tensor_lidar = torch.tensor(lidar_data, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)            
+    tensor_non_lidar = torch.tensor(non_lidar_data, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
+    actions, _, _ = model(tensor_lidar, tensor_non_lidar)
+    v, w = actions[0][0].item(), actions[0][1].item()
+    print(v, w)
+    print("Inference time: ", time.time() - start_time)

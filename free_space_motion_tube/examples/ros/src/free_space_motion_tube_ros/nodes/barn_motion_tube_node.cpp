@@ -27,7 +27,7 @@ double compute_points_distance(point2d_t *p1, point2d_t *p2);
 int print = true;
 double last_forward_vel = 0;
 double acceleration = .3;
-double dt = 1.0/50;
+double dt = 1.0/10;
 double last_w_vel=0.0;
 double max_forward_vel = .8;
 double max_angular_rate = M_PI/2;
@@ -161,6 +161,7 @@ void BarnMotionTubeNode::ScanCallback(const sensor_msgs::LaserScan::ConstPtr& ms
         range_scan.measurements[i] = (double) msg->ranges[i];
 
     }
+
 
     struct timespec tic,toc;
     clock_gettime(CLOCK_MONOTONIC,  &tic);

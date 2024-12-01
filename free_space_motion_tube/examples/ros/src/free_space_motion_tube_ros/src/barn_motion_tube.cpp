@@ -44,7 +44,7 @@ BarnMotionTube::BarnMotionTube()
     // Max number of samples
     params_.max_number_of_samples = 500;
     // Sampling parameters
-    params_.sampling_interval = 0.03;
+    params_.sampling_interval = 0.1;
     // Footprint
     double x_inflation = 0.10;
     double y_inflation = 0.05;

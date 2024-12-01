@@ -32,7 +32,6 @@
     <param name="scan_subscriber_queue_size" value="5" />
     <param name="scan_topic" value="/front/scan" />
     <param name="tf_map_scanmatch_transform_frame_name" value="scanmatcher_frame" />
-
   </node>
 
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">

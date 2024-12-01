@@ -2,17 +2,24 @@ import argparse
 import subprocess
 import time
 
-print(f"==== Run starting from 0 to 299 ======")
-
-RETRIES = 5
-for j in range(248, 300, 1):
-    print(f"==== Running world {j} ====")
-    for attempt in range(RETRIES):  # Retry up to 3 times
-        result = subprocess.run(["python", "run_rviz_kul.py", "--world_idx", str(j)])
-        if result.returncode == 200:  # Break the loop if the return code is 200
-            print("==== Success ====")
-            break
-        print(f"Attempt {attempt + 1} failed, retrying...")
-        time.sleep(1)
-
-    print(f"==== Done with world {j} ====")
+SINGLE_ENV_TRAIN_SIZE = 3
+for j in range(0, 300, 1):
+    for _ in range(SINGLE_ENV_TRAIN_SIZE):
+        print(f"==== Running world {j} ====")
+        success = False
+        while not success:
+            try:
+                result = subprocess.run(["python", "run_rviz_kul.py", "--world_idx", str(j)],
+                                        timeout=100)
+                if result.returncode == 200:
+                    print("==== Success ====")
+                    success = True
+                else:
+                    print("Fail... retrying")
+                time.sleep(5)
+            except subprocess.TimeoutExpired:
+                print("Timeout... retrying")
+                # Kill the process
+                subprocess.run(["pkill", "-f", "rviz"])
+                time.sleep(5)
+        

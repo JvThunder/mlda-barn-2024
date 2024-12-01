@@ -1,19 +1,21 @@
 import pandas as pd
 
-df = pd.read_csv('imit_data.csv')
+df = pd.read_csv('transformer_imit_data_2.csv')
+
 df = df[df['timestep'] == 0]
 
-# print number of world idx
-no_world_idx = len(df['world_idx'].unique())
-print(no_world_idx)
+# print(df[['world_idx', 'success']])
+# only pick the first data of every world_idx
+# df = df.groupby('world_idx').first().reset_index()
 
-print(df.groupby(['world_idx']).size())
+# clip by 0 to 0.5
+# if not success, set score to 0
+df["score"] = df["optimal_time"] / df["actual_time"] 
+df["score"] = df["score"].clip(0.125, 0.5)
+df.loc[df['success'] == False, 'score'] = 0
+# print(df["score"])
 
-# print number of success for each world idx
-grouped = df.groupby(['world_idx'])['success'].any()
-success = grouped.sum()
-
-print(grouped)
-print("transformer success rate: {:.2f}%".format(float(success) / no_world_idx * 100))
-
+print(df['world_idx'].value_counts().sort_index())
 print(df['success'].value_counts())
+print("Success rate: ", df['success'].value_counts()[1] / len(df))
+print("Overall score: ", df['score'].mean())

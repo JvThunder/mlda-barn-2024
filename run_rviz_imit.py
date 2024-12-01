@@ -82,6 +82,8 @@ if __name__ == "__main__":
     os.environ["JACKAL_LASER"] = "1"
     os.environ["JACKAL_LASER_MODEL"] = "ust10"
     os.environ["JACKAL_LASER_OFFSET"] = "-0.065 0 0.01"
+    os.environ["DISPLAY"] = "-"
+    # os.environ["DISPLAY"] = ":0"
     
     if args.world_idx < 300:  # static environment from 0-299
         world_name = "BARN/world_%d.world" %(args.world_idx)
@@ -94,6 +96,10 @@ if __name__ == "__main__":
     else:
         raise ValueError("World index %d does not exist" %args.world_idx)
     
+    INIT_POSITION[0] += np.random.uniform(-0.25, 0.25)
+    INIT_POSITION[1] += np.random.uniform(-0.25, 0.25)
+    INIT_POSITION[2] += np.random.uniform(-1, 1)
+
     print(">>>>>>>>>>>>>>>>>> Loading Gazebo Simulation with %s <<<<<<<<<<<<<<<<<<" %(world_name))   
     rospack = rospkg.RosPack()
     base_path = rospack.get_path('jackal_helper')
@@ -112,7 +118,7 @@ if __name__ == "__main__":
     
     rospy.init_node('gym', anonymous=True) #, log_level=rospy.FATAL
     rospy.set_param('/use_sim_time', True)
-    set_slow_simulation(0.1)
+    # set_slow_simulation(0.2)
 
     # Initialize the node
     pub = rospy.Publisher('/result_data', ResultData, queue_size=10)
@@ -252,6 +258,10 @@ if __name__ == "__main__":
 
     with open(args.out, "a") as f:
         f.write("%d %d %d %d %.4f %.4f\n" %(args.world_idx, success, collided, (curr_time - start_time)>=100, curr_time - start_time, nav_metric))
+
+    print("Waiting for the inspection node to complete CSV writing...")
+    while not rospy.get_param('/inspection_done', False):
+        time.sleep(1)  # Poll every second to check if inspection is done
 
     gazebo_process.terminate()
     gazebo_process.wait()

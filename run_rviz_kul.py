@@ -40,7 +40,9 @@ if __name__ == "__main__":
     os.environ["JACKAL_LASER"] = "1"
     os.environ["JACKAL_LASER_MODEL"] = "ust10"
     os.environ["JACKAL_LASER_OFFSET"] = "-0.065 0 0.01"
-    
+    # os.environ["DISPLAY"] = "-"
+    # os.environ["DISPLAY"] = ":0"
+
     if args.world_idx < 300:  # static environment from 0-299
         world_name = "BARN/world_%d.world" %(args.world_idx)
         INIT_POSITION = [-2.25, 3, 1.57]  # in world frame
@@ -51,6 +53,11 @@ if __name__ == "__main__":
         GOAL_POSITION = [-20, 0]  # relative to the initial position
     else:
         raise ValueError("World index %d does not exist" %args.world_idx)
+    
+    # add bit of randomness to INIT_POSITION
+    INIT_POSITION[0] += np.random.uniform(-0.25, 0.25)
+    INIT_POSITION[1] += np.random.uniform(-0.25, 0.25)
+    INIT_POSITION[2] += np.random.uniform(-1, 1)
     
     print(">>>>>>>>>>>>>>>>>> Loading Gazebo Simulation with %s <<<<<<<<<<<<<<<<<<" %(world_name))   
     rospack = rospkg.RosPack()
@@ -202,6 +209,9 @@ if __name__ == "__main__":
 
     with open(args.out, "a") as f:
         f.write("%d %d %d %d %.4f %.4f\n" %(args.world_idx, success, collided, (curr_time - start_time)>=100, curr_time - start_time, nav_metric))
+
+    print("Waiting for the inspection node to complete CSV writing...")
+   
 
     gazebo_process.terminate()
     gazebo_process.wait()

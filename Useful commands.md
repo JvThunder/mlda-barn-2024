@@ -42,9 +42,14 @@ source devel/setup.bash
 - Run environment
 ```shell
 python run_rviz_auto_start.py --world_idx 0
-python run_rviz_kul.py --world_idx 0 
+python run_rviz_kul.py --world_idx 300
 python run_rviz_imit.py --world_idx 0
 
 python get_kul_data.py
 python eval_imit.py
+
+rostopic hz /cmd_vel
+rostopic hz /front/scan
+
+sudo apt-get install python-scipy
 ```
