@@ -2,5 +2,6 @@
 *.sif
 out.txt
 *.csv
+*.pth
 train_imitation/diffusion_policy
 .vscode
