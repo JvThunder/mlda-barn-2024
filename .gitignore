@@ -3,4 +3,6 @@
 out.txt
 *.csv
 *.pth
+*.pyc
 .vscode
+out.txt

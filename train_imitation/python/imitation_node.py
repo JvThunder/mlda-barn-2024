@@ -29,8 +29,8 @@ import random
 from scipy.signal import savgol_filter
 from scipy.spatial.transform import Rotation as R
 
-model_arch = "transformer" 
-# model_arch = "cnn"
+# model_arch = "transformer" 
+model_arch = "cnn"
 
 class ROSNode:
     def __init__(self):
@@ -54,6 +54,7 @@ class ROSNode:
         self.lidar_data = []
         self.device = torch.device('cpu')
         self.look_ahead = 1.0
+        base_path = "/jackal_ws/src/mlda-barn-2024/train_imitation/models"
 
         if model_arch == "transformer":
             config_dict = easydict.EasyDict({
@@ -71,10 +72,10 @@ class ROSNode:
                 "device": "cpu",
             })
             self.model = Transformer(config_dict)
-            filepath = '/jackal_ws/src/mlda-barn-2024/train_imitation/diffusion_policy/transformer_model.pth'
+            filepath = base_path + "/transformer_model.pth"
         else:
             self.model = CNNModel(360, 4, 2)
-            filepath = '/jackal_ws/src/mlda-barn-2024/train_imitation/diffusion_policy/cnn_model.pth'
+            filepath = base_path + "/cnn_model.pth"
 
         self.model.load_state_dict(torch.load(filepath, map_location=torch.device('cpu')))
         self.model = self.model.to(self.device)

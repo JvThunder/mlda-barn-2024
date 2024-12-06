@@ -65,8 +65,8 @@ class DiffusionUnetLowdimPolicyWithCNN1D(DiffusionUnetLowdimPolicy):
         self.cnn_model = cnn_model
         self.normalizer = LinearNormalizer()
         self.obs_normalizer_params = nn.ParameterDict({
-            'scale': torch.tensor([1.0]),
-            'offset': torch.tensor([0.0])
+            'scale': torch.nn.Parameter(torch.tensor([1.0])),
+            'offset': torch.nn.Parameter(torch.tensor([0.0])),
         })
         self.normalizer.params_dict['obs'] = self.obs_normalizer_params
 

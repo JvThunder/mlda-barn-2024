@@ -1,0 +1,74 @@
+FROM ros:melodic
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    git \
+    build-essential \
+    ros-melodic-desktop-full \
+    ros-melodic-gmapping \
+    ros-melodic-robot-localization \
+    ros-melodic-joint-state-publisher-gui \
+    ros-melodic-navigation \
+    ros-melodic-hector-gazebo-plugins \
+    ros-melodic-velodyne-description \
+    ros-melodic-rosdoc-lite \
+    ros-melodic-twist-mux \
+    ros-melodic-sick-tim \
+    ros-melodic-teleop-twist-joy \
+    ros-melodic-teleop-twist-keyboard \
+    ros-melodic-pointgrey-camera-description \
+    ros-melodic-interactive-marker-twist-server \
+    ros-melodic-lms1xx \
+    ros-melodic-laser-pipeline \
+    ros-melodic-controller-manager \
+    python-scipy
+
+# Install Miniconda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh
+
+# Add Conda to PATH
+ENV PATH /opt/conda/bin:$PATH
+
+# Copy the environment.yml file to the Docker image
+COPY environment.yml /tmp/environment.yml
+
+# Create the Conda environment
+RUN conda env create -f /tmp/environment.yml
+
+# Activate the Conda environment in the bashrc
+RUN echo "source activate barn" >> ~/.bashrc
+RUN echo 'cd /jackal_ws/src/mlda-barn-2024' >> ~/.bashrc
+
+# Clone repositories
+RUN mkdir -p /jackal_ws/src
+WORKDIR /jackal_ws/src
+RUN git clone https://github.com/jackal/jackal.git --branch melodic-devel
+RUN git clone https://github.com/jackal/jackal_simulator.git --branch melodic-devel
+RUN git clone https://github.com/jackal/jackal_desktop.git --branch melodic-devel
+RUN git clone https://github.com/JvThunder/mlda-barn-2024.git
+
+# Build the free_space_motion_tube
+WORKDIR /jackal_ws/src/mlda-barn-2024/free_space_motion_tube
+RUN mkdir -p build
+WORKDIR /jackal_ws/src/mlda-barn-2024/free_space_motion_tube/build
+RUN cmake ..
+RUN make -j8 && make install
+
+# Set up the ROS environment
+WORKDIR /jackal_ws
+RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc
+RUN echo "if [ ! -d /jackal_ws/devel ]; then ">> ~/.bashrc
+RUN echo "  cd /jackal_ws" >> ~/.bashrc
+RUN echo "  catkin_make" >> ~/.bashrc
+RUN echo "else" >> ~/.bashrc
+RUN echo "  source /jackal_ws/devel/setup.bash;" >> ~/.bashrc
+RUN echo "fi" >> ~/.bashrc
+
+# Activate the Conda environment in the bashrc
+RUN echo "source activate barn" >> ~/.bashrc
+RUN echo 'cd /jackal_ws/src/mlda-barn-2024' >> ~/.bashrc
+
+WORKDIR /jackal_ws/src/mlda-barn-2024

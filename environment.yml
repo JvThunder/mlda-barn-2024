@@ -1,0 +1,22 @@
+name: barn
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.9
+  - defusedxml
+  - rospkg
+  - netifaces
+  - numpy
+  - jupyter
+  - scipy
+  - matplotlib
+  - casadi
+  - pytorch
+  - scikit-learn
+  - pandas
+  - easydict
+  - pip
+  - diffusers
+  - einops
+  - zarr
