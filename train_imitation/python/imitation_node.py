@@ -14,6 +14,7 @@ import laser_geometry.laser_geometry as lg
 
 from cnn_model import CNNModel
 from transformer_model import Transformer
+from diffusion_policy_model import DiffusionModel
 
 from sklearn.preprocessing import MinMaxScaler
 import torch
@@ -31,6 +32,7 @@ from scipy.spatial.transform import Rotation as R
 
 # model_arch = "transformer" 
 model_arch = "cnn"
+# model_arch = "diffusion"
 
 class ROSNode:
     def __init__(self):
@@ -73,9 +75,12 @@ class ROSNode:
             })
             self.model = Transformer(config_dict)
             filepath = base_path + "/transformer_model.pth"
-        else:
+        elif model_arch == "cnn":
             self.model = CNNModel(360, 4, 2)
             filepath = base_path + "/cnn_model.pth"
+        elif model_arch == "diffusion":
+            self.model = DiffusionModel()
+            filepath = base_path + "/diffusion_model.pth"
 
         self.model.load_state_dict(torch.load(filepath, map_location=torch.device('cpu')))
         self.model = self.model.to(self.device)
@@ -110,9 +115,12 @@ class ROSNode:
         if model_arch == "transformer":
             self.tensor_lidar = torch.rand(1, 360, 1)
             self.tensor_non_lidar = torch.rand(1, 4, 1)
-        else:
+        elif model_arch == "cnn":
             self.tensor_lidar = torch.rand(1, 1, 360)
             self.tensor_non_lidar = torch.rand(1, 1, 4)
+        elif model_arch == "diffusion":
+            self.tensor_lidar = torch.rand(1, 4, 360)
+            self.tensor_non_lidar = torch.rand(1, 4, 4)
     
     def callback_front_scan(self, data):
         with torch.no_grad():
@@ -122,15 +130,25 @@ class ROSNode:
             if model_arch == "transformer":
                 self.tensor_lidar = torch.tensor(self.lidar_data, dtype=torch.float32).unsqueeze(-1).unsqueeze(0).to(self.device)            
                 self.tensor_non_lidar = torch.tensor(self.non_lidar_data, dtype=torch.float32).unsqueeze(-1).unsqueeze(0).to(self.device)
-            else:
+            elif model_arch == "cnn":
                 self.tensor_lidar = torch.tensor(self.lidar_data, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)            
                 self.tensor_non_lidar = torch.tensor(self.non_lidar_data, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
-
+            elif model_arch == "diffusion":
+                curr_tensor_lidar = torch.tensor(self.lidar_data, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)            
+                curr_tensor_non_lidar = torch.tensor(self.non_lidar_data, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
+                # stack the lidar data with the previous lidar data
+                self.tensor_lidar = torch.cat((self.tensor_lidar, curr_tensor_lidar), dim=1)
+                self.tensor_non_lidar = torch.cat((self.tensor_non_lidar, curr_tensor_non_lidar), dim=1)
+                # keep only the last 4 frames
+                self.tensor_lidar = self.tensor_lidar[:, -4:, :]
+                self.tensor_non_lidar = self.tensor_non_lidar[:, -4:, :]
             
             self.start_time = time.time()
             if model_arch == "transformer":
                 actions, _, _ = self.model(self.tensor_lidar, self.tensor_non_lidar)
-            else:
+            elif model_arch == "cnn":
+                actions = self.model(self.tensor_lidar, self.tensor_non_lidar)
+            elif model_arch == "diffusion":
                 actions = self.model(self.tensor_lidar, self.tensor_non_lidar)
             print("Time taken for inference: {0}".format(time.time() - self.start_time))
             
