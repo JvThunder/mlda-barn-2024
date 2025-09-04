@@ -10,8 +10,8 @@ import rospkg
 from gazebo_simulation import GazeboSimulation
 from jackal_helper.msg import ResultData
 
-INIT_POSITION = [-2, 3, 1.57]  # in world frame
-GOAL_POSITION = [0, 10]  # relative to the initial position
+# INIT_POSITION = [-2, 3, 1.57]  # in world frame
+# GOAL_POSITION = [0, 10]  # relative to the initial position
 
 def compute_distance(p1, p2):
     return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
@@ -50,14 +50,14 @@ if __name__ == "__main__":
     elif args.world_idx < 360:  # Dynamic environment from 300-359
         world_name = "DynaBARN/world_%d.world" %(args.world_idx - 300)
         INIT_POSITION = [11, 0, 3.14]  # in world frame
-        GOAL_POSITION = [-20, 0]  # relative to the initial position
+        GOAL_POSITION = [-19, 0]  # relative to the initial position
     else:
         raise ValueError("World index %d does not exist" %args.world_idx)
     
     # add bit of randomness to INIT_POSITION
-    INIT_POSITION[0] += np.random.uniform(-0.25, 0.25)
-    INIT_POSITION[1] += np.random.uniform(-0.25, 0.25)
-    INIT_POSITION[2] += np.random.uniform(-1, 1)
+    # INIT_POSITION[0] += np.random.uniform(-0.25, 0.25)
+    # INIT_POSITION[1] += np.random.uniform(-0.25, 0.25)
+    # INIT_POSITION[2] += np.random.uniform(-1, 1)
     
     print(">>>>>>>>>>>>>>>>>> Loading Gazebo Simulation with %s <<<<<<<<<<<<<<<<<<" %(world_name))   
     rospack = rospkg.RosPack()
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         'world_name:=' + world_name,
         'gui:=true'
     ])
-    time.sleep(5)  # sleep to wait until the gazebo being created
+    # time.sleep(5)  # sleep to wait until the gazebo being created
     
     rospy.init_node('gym', anonymous=True) #, log_level=rospy.FATAL)
     rospy.set_param('/use_sim_time', True)
@@ -130,9 +130,8 @@ if __name__ == "__main__":
     mb_goal.target_pose.pose.orientation = Quaternion(0, 0, 0, 1)
 
     nav_as.wait_for_server()
+    print("goal: ", mb_goal)
     nav_as.send_goal(mb_goal)
-
-
 
 
     ##########################################################################################
@@ -167,7 +166,6 @@ if __name__ == "__main__":
 
 
     
-    
     ##########################################################################################
     ## 3. Report metrics and generate log
     ##########################################################################################
@@ -176,7 +174,7 @@ if __name__ == "__main__":
     success = False
     if collided:
         status = "collided"
-    elif curr_time - start_time >= 100:
+    elif curr_time - start_time >= 1000000:
         status = "timeout"
     else:
         status = "succeeded"

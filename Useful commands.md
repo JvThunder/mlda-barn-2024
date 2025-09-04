@@ -84,8 +84,9 @@ Run the notebook `train_imitation/behavior-cloning.ipynb`
 
 ## Test on environment
 ```shell
-python run_rviz_kul.py --world_idx 285
-python run_rviz_imit.py --world_idx 285
+python run_rviz_kul.py --world_idx 0
+python run_rviz_kul.py --world_idx 300
+python run_rviz_imit.py --world_idx 300
 python scripts/eval_imit.py
 
 python scripts/get_data_score.py # To get the score of the imitation model
@@ -95,3 +96,8 @@ python scripts/get_data_score.py # To get the score of the imitation model
 - Setting up cuda for GPU support in Docker (check Dockerfile_with_cuda)
 - Running the diffusion policy model on the ROS BARN environments
 - Evaluating the results of the diffusion policy model
+
+## Clear All ROS Nodes
+```shell
+rosnode kill -a
+```
